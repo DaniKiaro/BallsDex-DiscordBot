@@ -21,6 +21,9 @@ from ballsdex.core.utils.transformers import (
     SpecialEnabledTransform,
 )
 
+LOG_CHANNEL_ID = 1375845805793218591
+ADMIN_IDS = {1327148447673094255, 1300185879142469743}
+
 PACK_TYPES = {
     "normal": {
         "name": "Normal Pack",
@@ -48,7 +51,7 @@ PACK_TYPES = {
     },
     "legendary": {
         "name": "Legendary Pack",
-        "price": 1000,
+        "price": 1500,
         "emoji": "🌟",
         "color": Color.from_rgb(255, 215, 0),
         "min_rarity": 0.01,
@@ -116,6 +119,32 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
 
         return weighted_choices[-1][0] if weighted_choices else None
 
+    async def log_action(self, title: str, description: str, color: Color, fields: list = None):
+        try:
+            log_channel = self.bot.get_channel(LOG_CHANNEL_ID)
+            if not log_channel:
+                logger.warning(f"Log channel {LOG_CHANNEL_ID} not found")
+                return
+            
+            embed = Embed(
+                title=title,
+                description=description,
+                color=color,
+                timestamp=datetime.now(timezone.utc)
+            )
+            
+            if fields:
+                for field in fields:
+                    embed.add_field(
+                        name=field.get("name", ""),
+                        value=field.get("value", ""),
+                        inline=field.get("inline", False)
+                    )
+            
+            await log_channel.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Failed to log action: {e}")
+
     @app_commands.command(name="daily", description="Claim your daily CF coins!")
     @app_commands.checks.cooldown(1, 86400, key=lambda i: i.user.id)
     async def daily(self, interaction: discord.Interaction[BallsDexBot]):
@@ -151,6 +180,17 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
         logger.info(
             f"[CF COINS DAILY] {interaction.user} ({interaction.user.id}) "
             f"claimed {coins} CF coins. New balance: {self.bot.cf_wallet[user_id]}"
+        )
+        
+        await self.log_action(
+            title="💰 Daily Claim",
+            description=f"{interaction.user.mention} claimed their daily reward",
+            color=Color.green(),
+            fields=[
+                {"name": "User", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Coins Claimed", "value": f"{coins} CF coins", "inline": True},
+                {"name": "New Balance", "value": f"{self.bot.cf_wallet[user_id]} CF coins", "inline": True}
+            ]
         )
 
     @app_commands.command(name="weekly", description="Claim your weekly CF coins!")
@@ -188,6 +228,17 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
         logger.info(
             f"[CF COINS WEEKLY] {interaction.user} ({interaction.user.id}) "
             f"claimed {coins} CF coins. New balance: {self.bot.cf_wallet[user_id]}"
+        )
+        
+        await self.log_action(
+            title="🎉 Weekly Claim",
+            description=f"{interaction.user.mention} claimed their weekly reward",
+            color=Color.from_rgb(255, 215, 0),
+            fields=[
+                {"name": "User", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Coins Claimed", "value": f"{coins} CF coins", "inline": True},
+                {"name": "New Balance", "value": f"{self.bot.cf_wallet[user_id]} CF coins", "inline": True}
+            ]
         )
 
     @app_commands.command(name="sell", description="Sell a ball for CF coins!")
@@ -249,6 +300,19 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
         logger.info(
             f"[CF COINS SELL] {interaction.user} ({interaction.user.id}) "
             f"sold {ball_name} (rarity {rarity}) for {coins} CF coins"
+        )
+        
+        await self.log_action(
+            title="💵 Ball Sold",
+            description=f"{interaction.user.mention} sold a ball",
+            color=Color.green(),
+            fields=[
+                {"name": "User", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Ball", "value": f"{ball_name} {ball_id}", "inline": True},
+                {"name": "Rarity", "value": f"{rarity}", "inline": True},
+                {"name": "Coins Earned", "value": f"{coins} CF coins", "inline": True},
+                {"name": "New Balance", "value": f"{self.bot.cf_wallet[user_id]} CF coins", "inline": True}
+            ]
         )
 
     @app_commands.command(name="wallet", description="Check your CF coins and packs!")
@@ -320,7 +384,7 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
             app_commands.Choice(name="Normal Pack (100 coins)", value="normal"),
             app_commands.Choice(name="Epic Pack (250 coins)", value="epic"),
             app_commands.Choice(name="Mythic Pack (500 coins)", value="mythic"),
-            app_commands.Choice(name="Legendary Pack (1000 coins)", value="legendary"),
+            app_commands.Choice(name="Legendary Pack (1500 coins)", value="legendary"),
         ]
     )
     async def buy(self, interaction: discord.Interaction[BallsDexBot], pack_type: str):
@@ -375,6 +439,19 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
         logger.info(
             f"[CF COINS BUY] {interaction.user} ({interaction.user.id}) "
             f"bought {pack_info['name']} for {price} CF coins"
+        )
+        
+        await self.log_action(
+            title="🎉 Pack Purchased",
+            description=f"{interaction.user.mention} bought a pack",
+            color=pack_info["color"],
+            fields=[
+                {"name": "User", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Pack Type", "value": f"{pack_info['emoji']} {pack_info['name']}", "inline": True},
+                {"name": "Price Paid", "value": f"{price} CF coins", "inline": True},
+                {"name": "Remaining Balance", "value": f"{self.bot.cf_wallet[user_id]} CF coins", "inline": True},
+                {"name": "Total Packs of This Type", "value": f"{self.bot.cf_packs[user_id][pack_type]}", "inline": True}
+            ]
         )
 
     @app_commands.command(name="open", description="Open a pack to get a ball!")
@@ -469,6 +546,419 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
         logger.info(
             f"[CF COINS OPEN] {interaction.user} ({interaction.user.id}) "
             f"opened {pack_info['name']} and got {ball.country} (rarity {ball.rarity})"
+        )
+        
+        await self.log_action(
+            title="🎁 Pack Opened",
+            description=f"{interaction.user.mention} opened a pack",
+            color=pack_info["color"],
+            fields=[
+                {"name": "User", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Pack Type", "value": f"{pack_info['emoji']} {pack_info['name']}", "inline": True},
+                {"name": "Ball Received", "value": f"{ball.country}", "inline": True},
+                {"name": "Rarity", "value": f"{ball.rarity}", "inline": True},
+                {"name": "Health", "value": f"{instance.health}", "inline": True},
+                {"name": "Attack", "value": f"{instance.attack}", "inline": True}
+            ]
+        )
+
+    @app_commands.command(name="giftcoins", description="Gift CF coins to another user!")
+    @app_commands.describe(user="The user to gift coins to", amount="Amount of CF coins to gift")
+    async def giftcoins(self, interaction: discord.Interaction[BallsDexBot], user: discord.User, amount: int):
+        sender_id = str(interaction.user.id)
+        receiver_id = str(user.id)
+        
+        if user.id == interaction.user.id:
+            await interaction.response.send_message(
+                "❌ You cannot gift coins to yourself!",
+                ephemeral=True
+            )
+            return
+        
+        if user.bot:
+            await interaction.response.send_message(
+                "❌ You cannot gift coins to a bot!",
+                ephemeral=True
+            )
+            return
+        
+        if amount <= 0:
+            await interaction.response.send_message(
+                "❌ You must gift at least 1 CF coin!",
+                ephemeral=True
+            )
+            return
+        
+        if self.bot.cf_wallet[sender_id] < amount:
+            await interaction.response.send_message(
+                f"❌ You don't have enough CF coins! You have **{self.bot.cf_wallet[sender_id]}** CF coins but tried to gift **{amount}**.",
+                ephemeral=True
+            )
+            return
+        
+        self.bot.cf_wallet[sender_id] -= amount
+        self.bot.cf_wallet[receiver_id] += amount
+        
+        embed = Embed(
+            title="💝 Coins Gifted!",
+            description=f"You gifted **{amount} CF coins** to {user.mention}!",
+            color=Color.green()
+        )
+        embed.add_field(name="💳 Your New Balance", value=f"{self.bot.cf_wallet[sender_id]} CF coins", inline=False)
+        embed.set_author(
+            name=interaction.user.display_name,
+            icon_url=interaction.user.display_avatar.url
+        )
+        
+        await interaction.response.send_message(embed=embed)
+        
+        logger.info(
+            f"[CF COINS GIFT] {interaction.user} ({interaction.user.id}) "
+            f"gifted {amount} CF coins to {user} ({user.id})"
+        )
+        
+        await self.log_action(
+            title="💝 Coins Gifted",
+            description=f"{interaction.user.mention} gifted coins to {user.mention}",
+            color=Color.green(),
+            fields=[
+                {"name": "Sender", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Receiver", "value": f"{user.name} ({user.id})", "inline": True},
+                {"name": "Amount", "value": f"{amount} CF coins", "inline": True},
+                {"name": "Sender New Balance", "value": f"{self.bot.cf_wallet[sender_id]} CF coins", "inline": True},
+                {"name": "Receiver New Balance", "value": f"{self.bot.cf_wallet[receiver_id]} CF coins", "inline": True}
+            ]
+        )
+
+    @app_commands.command(name="giftpacks", description="Gift a pack to another user!")
+    @app_commands.describe(
+        user="The user to gift the pack to",
+        pack_type="The type of pack to gift (normal, epic, mythic, legendary)"
+    )
+    @app_commands.choices(
+        pack_type=[
+            app_commands.Choice(name="Normal Pack", value="normal"),
+            app_commands.Choice(name="Epic Pack", value="epic"),
+            app_commands.Choice(name="Mythic Pack", value="mythic"),
+            app_commands.Choice(name="Legendary Pack", value="legendary"),
+        ]
+    )
+    async def giftpacks(self, interaction: discord.Interaction[BallsDexBot], user: discord.User, pack_type: str):
+        sender_id = str(interaction.user.id)
+        receiver_id = str(user.id)
+        
+        if user.id == interaction.user.id:
+            await interaction.response.send_message(
+                "❌ You cannot gift packs to yourself!",
+                ephemeral=True
+            )
+            return
+        
+        if user.bot:
+            await interaction.response.send_message(
+                "❌ You cannot gift packs to a bot!",
+                ephemeral=True
+            )
+            return
+        
+        if pack_type not in PACK_TYPES:
+            await interaction.response.send_message(
+                "Invalid pack type! Choose: normal, epic, mythic, or legendary.",
+                ephemeral=True
+            )
+            return
+        
+        if self.bot.cf_packs[sender_id][pack_type] < 1:
+            await interaction.response.send_message(
+                f"❌ You don't have any {PACK_TYPES[pack_type]['name']}s to gift!",
+                ephemeral=True
+            )
+            return
+        
+        pack_info = PACK_TYPES[pack_type]
+        
+        self.bot.cf_packs[sender_id][pack_type] -= 1
+        self.bot.cf_packs[receiver_id][pack_type] += 1
+        
+        embed = Embed(
+            title="🎁 Pack Gifted!",
+            description=f"You gifted a **{pack_info['name']}** {pack_info['emoji']} to {user.mention}!",
+            color=pack_info["color"]
+        )
+        embed.add_field(
+            name="📦 Your Remaining Packs",
+            value=f"{self.bot.cf_packs[sender_id][pack_type]} {pack_info['name']}s",
+            inline=False
+        )
+        embed.set_author(
+            name=interaction.user.display_name,
+            icon_url=interaction.user.display_avatar.url
+        )
+        
+        await interaction.response.send_message(embed=embed)
+        
+        logger.info(
+            f"[CF COINS GIFT PACK] {interaction.user} ({interaction.user.id}) "
+            f"gifted {pack_info['name']} to {user} ({user.id})"
+        )
+        
+        await self.log_action(
+            title="🎁 Pack Gifted",
+            description=f"{interaction.user.mention} gifted a pack to {user.mention}",
+            color=pack_info["color"],
+            fields=[
+                {"name": "Sender", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Receiver", "value": f"{user.name} ({user.id})", "inline": True},
+                {"name": "Pack Type", "value": f"{pack_info['emoji']} {pack_info['name']}", "inline": True},
+                {"name": "Sender Remaining Packs", "value": f"{self.bot.cf_packs[sender_id][pack_type]}", "inline": True},
+                {"name": "Receiver Total Packs", "value": f"{self.bot.cf_packs[receiver_id][pack_type]}", "inline": True}
+            ]
+        )
+
+    @app_commands.command(name="adminaddcoins", description="[ADMIN] Add CF coins to a user")
+    @app_commands.describe(user="The user to add coins to", amount="Amount of CF coins to add")
+    async def adminaddcoins(self, interaction: discord.Interaction[BallsDexBot], user: discord.User, amount: int):
+        if interaction.user.id not in ADMIN_IDS:
+            await interaction.response.send_message(
+                "❌ You don't have permission to use this command!",
+                ephemeral=True
+            )
+            return
+        
+        if amount <= 0:
+            await interaction.response.send_message(
+                "❌ Amount must be greater than 0!",
+                ephemeral=True
+            )
+            return
+        
+        user_id = str(user.id)
+        old_balance = self.bot.cf_wallet[user_id]
+        self.bot.cf_wallet[user_id] += amount
+        new_balance = self.bot.cf_wallet[user_id]
+        
+        embed = Embed(
+            title="✅ Coins Added",
+            description=f"Added **{amount} CF coins** to {user.mention}",
+            color=Color.green()
+        )
+        embed.add_field(name="Old Balance", value=f"{old_balance} CF coins", inline=True)
+        embed.add_field(name="New Balance", value=f"{new_balance} CF coins", inline=True)
+        embed.set_footer(text=f"Admin: {interaction.user.name}")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        logger.info(
+            f"[CF COINS ADMIN ADD] {interaction.user} ({interaction.user.id}) "
+            f"added {amount} CF coins to {user} ({user.id})"
+        )
+        
+        await self.log_action(
+            title="🔧 Admin: Coins Added",
+            description=f"Admin {interaction.user.mention} added coins to {user.mention}",
+            color=Color.orange(),
+            fields=[
+                {"name": "Admin", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Target User", "value": f"{user.name} ({user.id})", "inline": True},
+                {"name": "Amount Added", "value": f"{amount} CF coins", "inline": True},
+                {"name": "Old Balance", "value": f"{old_balance} CF coins", "inline": True},
+                {"name": "New Balance", "value": f"{new_balance} CF coins", "inline": True}
+            ]
+        )
+
+    @app_commands.command(name="adminremovecoins", description="[ADMIN] Remove CF coins from a user")
+    @app_commands.describe(user="The user to remove coins from", amount="Amount of CF coins to remove")
+    async def adminremovecoins(self, interaction: discord.Interaction[BallsDexBot], user: discord.User, amount: int):
+        if interaction.user.id not in ADMIN_IDS:
+            await interaction.response.send_message(
+                "❌ You don't have permission to use this command!",
+                ephemeral=True
+            )
+            return
+        
+        if amount <= 0:
+            await interaction.response.send_message(
+                "❌ Amount must be greater than 0!",
+                ephemeral=True
+            )
+            return
+        
+        user_id = str(user.id)
+        old_balance = self.bot.cf_wallet[user_id]
+        self.bot.cf_wallet[user_id] = max(0, self.bot.cf_wallet[user_id] - amount)
+        new_balance = self.bot.cf_wallet[user_id]
+        
+        embed = Embed(
+            title="✅ Coins Removed",
+            description=f"Removed **{amount} CF coins** from {user.mention}",
+            color=Color.red()
+        )
+        embed.add_field(name="Old Balance", value=f"{old_balance} CF coins", inline=True)
+        embed.add_field(name="New Balance", value=f"{new_balance} CF coins", inline=True)
+        embed.set_footer(text=f"Admin: {interaction.user.name}")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        logger.info(
+            f"[CF COINS ADMIN REMOVE] {interaction.user} ({interaction.user.id}) "
+            f"removed {amount} CF coins from {user} ({user.id})"
+        )
+        
+        await self.log_action(
+            title="🔧 Admin: Coins Removed",
+            description=f"Admin {interaction.user.mention} removed coins from {user.mention}",
+            color=Color.red(),
+            fields=[
+                {"name": "Admin", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Target User", "value": f"{user.name} ({user.id})", "inline": True},
+                {"name": "Amount Removed", "value": f"{amount} CF coins", "inline": True},
+                {"name": "Old Balance", "value": f"{old_balance} CF coins", "inline": True},
+                {"name": "New Balance", "value": f"{new_balance} CF coins", "inline": True}
+            ]
+        )
+
+    @app_commands.command(name="adminaddpacks", description="[ADMIN] Add packs to a user")
+    @app_commands.describe(
+        user="The user to add packs to",
+        pack_type="The type of pack to add",
+        amount="Number of packs to add"
+    )
+    @app_commands.choices(
+        pack_type=[
+            app_commands.Choice(name="Normal Pack", value="normal"),
+            app_commands.Choice(name="Epic Pack", value="epic"),
+            app_commands.Choice(name="Mythic Pack", value="mythic"),
+            app_commands.Choice(name="Legendary Pack", value="legendary"),
+        ]
+    )
+    async def adminaddpacks(self, interaction: discord.Interaction[BallsDexBot], user: discord.User, pack_type: str, amount: int):
+        if interaction.user.id not in ADMIN_IDS:
+            await interaction.response.send_message(
+                "❌ You don't have permission to use this command!",
+                ephemeral=True
+            )
+            return
+        
+        if pack_type not in PACK_TYPES:
+            await interaction.response.send_message(
+                "Invalid pack type!",
+                ephemeral=True
+            )
+            return
+        
+        if amount <= 0:
+            await interaction.response.send_message(
+                "❌ Amount must be greater than 0!",
+                ephemeral=True
+            )
+            return
+        
+        user_id = str(user.id)
+        pack_info = PACK_TYPES[pack_type]
+        old_amount = self.bot.cf_packs[user_id][pack_type]
+        self.bot.cf_packs[user_id][pack_type] += amount
+        new_amount = self.bot.cf_packs[user_id][pack_type]
+        
+        embed = Embed(
+            title="✅ Packs Added",
+            description=f"Added **{amount} {pack_info['name']}s** {pack_info['emoji']} to {user.mention}",
+            color=pack_info["color"]
+        )
+        embed.add_field(name="Old Amount", value=f"{old_amount} packs", inline=True)
+        embed.add_field(name="New Amount", value=f"{new_amount} packs", inline=True)
+        embed.set_footer(text=f"Admin: {interaction.user.name}")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        logger.info(
+            f"[CF COINS ADMIN ADD PACKS] {interaction.user} ({interaction.user.id}) "
+            f"added {amount} {pack_info['name']}s to {user} ({user.id})"
+        )
+        
+        await self.log_action(
+            title="🔧 Admin: Packs Added",
+            description=f"Admin {interaction.user.mention} added packs to {user.mention}",
+            color=Color.orange(),
+            fields=[
+                {"name": "Admin", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Target User", "value": f"{user.name} ({user.id})", "inline": True},
+                {"name": "Pack Type", "value": f"{pack_info['emoji']} {pack_info['name']}", "inline": True},
+                {"name": "Amount Added", "value": f"{amount} packs", "inline": True},
+                {"name": "Old Amount", "value": f"{old_amount} packs", "inline": True},
+                {"name": "New Amount", "value": f"{new_amount} packs", "inline": True}
+            ]
+        )
+
+    @app_commands.command(name="adminremovepacks", description="[ADMIN] Remove packs from a user")
+    @app_commands.describe(
+        user="The user to remove packs from",
+        pack_type="The type of pack to remove",
+        amount="Number of packs to remove"
+    )
+    @app_commands.choices(
+        pack_type=[
+            app_commands.Choice(name="Normal Pack", value="normal"),
+            app_commands.Choice(name="Epic Pack", value="epic"),
+            app_commands.Choice(name="Mythic Pack", value="mythic"),
+            app_commands.Choice(name="Legendary Pack", value="legendary"),
+        ]
+    )
+    async def adminremovepacks(self, interaction: discord.Interaction[BallsDexBot], user: discord.User, pack_type: str, amount: int):
+        if interaction.user.id not in ADMIN_IDS:
+            await interaction.response.send_message(
+                "❌ You don't have permission to use this command!",
+                ephemeral=True
+            )
+            return
+        
+        if pack_type not in PACK_TYPES:
+            await interaction.response.send_message(
+                "Invalid pack type!",
+                ephemeral=True
+            )
+            return
+        
+        if amount <= 0:
+            await interaction.response.send_message(
+                "❌ Amount must be greater than 0!",
+                ephemeral=True
+            )
+            return
+        
+        user_id = str(user.id)
+        pack_info = PACK_TYPES[pack_type]
+        old_amount = self.bot.cf_packs[user_id][pack_type]
+        self.bot.cf_packs[user_id][pack_type] = max(0, self.bot.cf_packs[user_id][pack_type] - amount)
+        new_amount = self.bot.cf_packs[user_id][pack_type]
+        
+        embed = Embed(
+            title="✅ Packs Removed",
+            description=f"Removed **{amount} {pack_info['name']}s** {pack_info['emoji']} from {user.mention}",
+            color=Color.red()
+        )
+        embed.add_field(name="Old Amount", value=f"{old_amount} packs", inline=True)
+        embed.add_field(name="New Amount", value=f"{new_amount} packs", inline=True)
+        embed.set_footer(text=f"Admin: {interaction.user.name}")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        logger.info(
+            f"[CF COINS ADMIN REMOVE PACKS] {interaction.user} ({interaction.user.id}) "
+            f"removed {amount} {pack_info['name']}s from {user} ({user.id})"
+        )
+        
+        await self.log_action(
+            title="🔧 Admin: Packs Removed",
+            description=f"Admin {interaction.user.mention} removed packs from {user.mention}",
+            color=Color.red(),
+            fields=[
+                {"name": "Admin", "value": f"{interaction.user.name} ({interaction.user.id})", "inline": True},
+                {"name": "Target User", "value": f"{user.name} ({user.id})", "inline": True},
+                {"name": "Pack Type", "value": f"{pack_info['emoji']} {pack_info['name']}", "inline": True},
+                {"name": "Amount Removed", "value": f"{amount} packs", "inline": True},
+                {"name": "Old Amount", "value": f"{old_amount} packs", "inline": True},
+                {"name": "New Amount", "value": f"{new_amount} packs", "inline": True}
+            ]
         )
 
 
