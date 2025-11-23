@@ -38,7 +38,7 @@ from collections import defaultdict
 # Owners who can give packs
 ownersid = {
     1327148447673094255,
-    1439238698821484595
+    730411104450248766
 }
 
 # Cooldowns
