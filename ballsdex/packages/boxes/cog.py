@@ -54,7 +54,7 @@ packly_pool = defaultdict(int)
 
 # Owners who can give packs
 ownersid = {
-    1439238698821484595,
+    730411104450248766,
     1327148447673094255
 }
 
