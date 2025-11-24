@@ -51,7 +51,7 @@ PACK_TYPES = {
     },
     "legendary": {
         "name": "Legendary Pack",
-        "price": 3000,
+        "price": 5000,
         "emoji": "<:legendarypack:1441903650086715552>",
         "color": Color.from_rgb(255, 215, 0),
         "min_rarity": 0.01,
@@ -626,7 +626,7 @@ class CFCoins(commands.GroupCog, name="cfcoins"):
             app_commands.Choice(name="Normal Pack (250 coins)", value="normal"),
             app_commands.Choice(name="Epic Pack (500 coins)", value="epic"),
             app_commands.Choice(name="Mythic Pack (1500 coins)", value="mythic"),
-            app_commands.Choice(name="Legendary Pack (3000 coins)", value="legendary"),
+            app_commands.Choice(name="Legendary Pack (5000 coins)", value="legendary"),
         ]
     )
     async def buy(self, interaction: discord.Interaction[BallsDexBot], pack_type: str):
